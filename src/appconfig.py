@@ -11,6 +11,8 @@ def createConfig(**args):
     config.model = Model()
     config.serve_static = True
     config.paths['static_files'] = 'todomvc/examples/react'
+    config.wshost = 'huumanoid.ru'
+    config.wsport = 8081
 
     logging.basicConfig()
     logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)

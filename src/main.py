@@ -96,15 +96,15 @@ def ws_serve(websocket, path):
         yield from websocket.recv()
     sockets.remove(websocket)
 
+config = appconfig.createConfig(minimal=True, root_controller=RootController())
 
 def ws_setup():
-    start_ws = websockets.serve(ws_serve, 'huumanoid.ru', 8081)
+    start_ws = websockets.serve(ws_serve, config.wshost, config.wsport)
 
     asyncio.get_event_loop().run_until_complete(start_ws)
     asyncio.get_event_loop().run_forever()
 
 def web_setup():
-    config = appconfig.createConfig(minimal=True, root_controller=RootController())
     application = config.make_wsgi_app()
 
     print("Serving on port ", port, "...")
