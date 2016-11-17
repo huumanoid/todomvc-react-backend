@@ -1,8 +1,11 @@
 import sys
+import threading
 
 from tg import expose, redirect, TGController, RestController
 from tg import redirect, response
 from wsgiref.simple_server import make_server
+import websockets
+import asyncio
 
 import appconfig
 from model import TodoEntry, DBSession
@@ -17,6 +20,7 @@ class TodoController(RestController):
         todo.title = title
         todo.completed = completed == 'true'
         DBSession.commit()
+        inform()
 
     @expose('json')
     def patch(self, id, title=None, completed=None):
@@ -25,6 +29,8 @@ class TodoController(RestController):
         todo.completed = completed == 'true' if completed != None else todo.completed
         DBSession.commit()
 
+        inform()
+
     @expose('json')
     def post(self, title, completed=None):
         todo = TodoEntry(title=title, completed=completed)
@@ -32,6 +38,8 @@ class TodoController(RestController):
         DBSession.commit()
         response.status = 201
         response.headers['Location'] = self.mount_point + '/' + str(todo.id)
+
+        inform()
         return { 'response': { 'id': todo.id }}
 
 
@@ -45,6 +53,8 @@ class TodoController(RestController):
 
         DBSession.delete(todo)
         DBSession.commit()
+
+        inform()
 
     @expose('json')
     def get_one(self, id):
@@ -68,10 +78,39 @@ class RootController(TGController):
     def index(self):
         redirect('/index.html')
 
-config = appconfig.createConfig(minimal=True, root_controller=RootController())
-application = config.make_wsgi_app()
+
+sockets = set()
+loop = asyncio.get_event_loop()
+
+def inform():
+    loop.call_soon_threadsafe(asyncio.async, broadcast())
+
+@asyncio.coroutine
+def broadcast():
+    yield from asyncio.wait([ws.send('{"update":true}') for ws in sockets])
+
+@asyncio.coroutine
+def ws_serve(websocket, path):
+    sockets.add(websocket)
+    while True:
+        yield from websocket.recv()
+    sockets.remove(websocket)
 
 
-print("Serving on port ", port, "...")
-httpd = make_server('', port, application)
-httpd.serve_forever()
+def ws_setup():
+    start_ws = websockets.serve(ws_serve, 'huumanoid.ru', 8081)
+
+    asyncio.get_event_loop().run_until_complete(start_ws)
+    asyncio.get_event_loop().run_forever()
+
+def web_setup():
+    config = appconfig.createConfig(minimal=True, root_controller=RootController())
+    application = config.make_wsgi_app()
+
+    print("Serving on port ", port, "...")
+    httpd = make_server('', port, application)
+    httpd.serve_forever()
+
+threading.Thread(target=web_setup).start()
+ws_setup()
+

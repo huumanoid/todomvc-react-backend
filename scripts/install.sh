@@ -3,4 +3,5 @@ source venv/bin/activate
 pip install sqlalchemy
 pip install tg.devtools
 pip install mysqlclient
+pip install websockets
 deactivate
