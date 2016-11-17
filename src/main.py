@@ -1,3 +1,5 @@
+import sys
+
 from tg import expose, redirect, TGController, RestController
 from tg import redirect, response
 from wsgiref.simple_server import make_server
@@ -5,6 +7,7 @@ from wsgiref.simple_server import make_server
 import appconfig
 from model import TodoEntry, DBSession
 
+port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 
 class TodoController(RestController):
 
@@ -13,6 +16,13 @@ class TodoController(RestController):
         todo = DBSession.query(TodoEntry).get(id)
         todo.title = title
         todo.completed = completed == 'true'
+        DBSession.commit()
+
+    @expose('json')
+    def patch(self, id, title=None, completed=None):
+        todo = DBSession.query(TodoEntry).get(id)
+        todo.title = title if title != None else todo.title
+        todo.completed = completed == 'true' if completed != None else todo.completed
         DBSession.commit()
 
     @expose('json')
@@ -60,6 +70,6 @@ config = appconfig.createConfig(minimal=True, root_controller=RootController())
 application = config.make_wsgi_app()
 
 
-print("Serving on port 8080...")
-httpd = make_server('', 8080, application)
+print("Serving on port ", port, "...")
+httpd = make_server('', port, application)
 httpd.serve_forever()
