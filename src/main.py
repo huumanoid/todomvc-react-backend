@@ -30,6 +30,8 @@ class TodoController(RestController):
         todo = TodoEntry(title=title, completed=completed)
         DBSession.add(todo)
         DBSession.commit()
+        response.status = 201
+        response.headers['Location'] = self.mount_point + '/' + str(todo.id)
         return { 'response': { 'id': todo.id }}
 
 
