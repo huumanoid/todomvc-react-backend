@@ -1,9 +1,11 @@
-from tg import expose, TGController, AppConfig, RestController
+from tg import expose, redirect, TGController, AppConfig, RestController
+from tg import redirect, response
 from wsgiref.simple_server import make_server
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
+import logging
 
 DeclarativeBase = declarative_base()
 
@@ -13,13 +15,13 @@ DBSession = scoped_session(sessionmaker(autoflush=True, autocommit=False))
 class TodoEntry(DeclarativeBase):
     __tablename__ = 'list'
 
-    def __init__(self, content, active):
-        self.content = content
-        self.active = active
+    def __init__(self, title, completed):
+        self.title = title
+        self.completed = completed
 
     id = Column(Integer, primary_key=True)
-    content = Column(String(256))
-    active = Column(Integer, default=True)
+    title = Column(String(256))
+    completed = Column(Boolean, default=False)
 
 class Model:
     TodoEntry = TodoEntry
@@ -33,42 +35,63 @@ class Model:
 class TodoController(RestController):
 
     @expose('json')
-    def put(self, content):
-        return 'todo ' + content + ' has been put\r\n'
+    def put(self, id, title, completed):
+        todo = DBSession.query(TodoEntry).get(id)
+        todo.title = title
+        todo.completed = completed == 'true'
+        DBSession.commit()
 
     @expose('json')
-    def post(self, content='stub', active=None):
-        DBSession.add(TodoEntry(content=content, active=active))
+    def post(self, title, completed=None):
+        todo = TodoEntry(title=title, completed=completed)
+        DBSession.add(todo)
         DBSession.commit()
-        return
+        return { 'response': { 'id': todo.id }}
+
 
     @expose('json')
     def post_delete(self, id):
-        DBSession.query(TodoEntry).filter(TodoEntry.id==id).delete()
+        todo = DBSession.query(TodoEntry).get(id)
+
+        if todo == None:
+            response.status = 404
+            return
+
+        DBSession.delete(todo)
         DBSession.commit()
-        return 'todo ' + id + ' has been deleted\r\n'
 
     @expose('json')
     def get_one(self, id):
-        return 'todo: ' + id + '\r\n'
+        todo = DBSession.query(TodoEntry).get(id)
+
+        if todo == None:
+            response.status = 404
+            return
+
+        return dict(response={ 'todo': todo })
 
     @expose('json')
     def get_all(self):
         todos = DBSession.query(TodoEntry).all()
-        return dict(list=todos)
+        return { 'response': { 'todos': todos } }
 
 class RootController(TGController):
-    todo = TodoController()
+    todos = TodoController()
 
     @expose()
     def index(self):
-        return 'Hello World\r\n'
+        redirect('/index.html')
 
 config = AppConfig(minimal=True, root_controller=RootController())
 
 config.use_sqlalchemy = True
 config['sqlalchemy.url'] = 'mysql://_ru_hmnid_tstusr:password@localhost/_ru_hmnid_testdb'
 config.model = Model()
+config.serve_static = True
+config.paths['static_files'] = 'todomvc/examples/react'
+
+logging.basicConfig()
+logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 application = config.make_wsgi_app()
 
