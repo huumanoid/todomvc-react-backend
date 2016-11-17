@@ -6,6 +6,6 @@ GRANT ALL ON `_ru_hmnid_testdb`.* TO '_ru_hmnid_tstusr'@'localhost' IDENTIFIED B
 USE `_ru_hmnid_testdb`;
 CREATE TABLE IF NOT EXISTS `list`(
         id INTEGER KEY AUTO_INCREMENT,
-        content VARCHAR(256) NOT NULL,
-        active BOOLEAN NOT NULL DEFAULT 1
+        title VARCHAR(256) NOT NULL,
+        completed BOOLEAN NOT NULL DEFAULT 0
     );
