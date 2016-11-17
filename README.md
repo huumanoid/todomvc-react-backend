@@ -6,3 +6,5 @@ To run, do:
 source venv/bin/activate
 python src/main.py 8080
 ```
+
+Demo: http://huumanoid.ru:8080
